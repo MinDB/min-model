@@ -53,7 +53,6 @@ Model.use(min)
 ```
 
 
-
 Now, you can extend a model which you need to use. For example, here is a Contacts app, so we need to create a `Contact` model to perform every person in the list.
 
 ```javascript
@@ -97,6 +96,32 @@ The instances also have an event will be emitted.
 | ------- | ---------------------------------------- |
 | `ready` | When the instance data was stored in the database and be ready to process |
 
+**Lifecyle**
+
+The model instance have a lifecyle like following:
+
+- beforeValidate
+- beforeStore
+- ready
+- beforeUpdate
+- afterUpdate
+- beforeRemove
+- afterRemove
+
+These lifecycle hook can simply use in the `Model.extend()`.
+
+```javascript
+const Contact = Model.extend('contact', {
+  name: String,
+  memo: 'There is nothing about him/her.',
+  number: Number,
+
+  beforeValidata(content) {
+    // convert the number to integer
+    content.age = parseInt(content)
+  }
+})
+```
 
 
 For real application development, the subclasses of Model also have some static methods for management and searching.
@@ -166,13 +191,18 @@ After that, you can use `Model.setIndexer(type, Indexer)` to set up.
 
 
 ```javascript
+import moment from 'moment'
+// Here is a 3rd module named moment.js
+
 class FormatedDateIndexer extends Model.BaseIndexer {
   indexMapper(value) {
     // ...
     // value would like '2016-05-01'
-    return value.split('-').map(Number)
+    return moment(value).format('YYYY-MM-DD').split('-').map(Number)
   }
 }
+
+Model.setIndexer(Date, FormatedDateIndexer)
 ```
 
 
@@ -199,6 +229,37 @@ export default class NumberIndexer extends Model.BaseIndexer {
       ))
   }
 }
+```
+
+Of course, you can set the custom indexer just for a single column too.
+
+```javascript
+Contact.setIndexerForColumn('number', NumberIndexer)
+```
+
+
+
+**Async Indexer**
+
+In sometime, computing the indexes in the local device is not wise so we need to use some API to achieve.
+
+You need to set a property named `async` to be `true` and `indexMapper` method should returns a Promise object.
+
+```javascript
+class ChineseStringIndexer extends Model.BaseIndexer {
+  get async() { return true }
+
+  indexMapper(val) {
+    return new Promise((resolve, reject) => {
+      fetch(`http://api.pullword.com/get.php?source=${encodeURIComponent(val)}&param1=0.5&param2=0`)
+        .then(res => res.text())
+        .then(body => resolve(body.split('\r\n').filter(Boolean)))
+        .catch(reject)
+    })
+  }
+}
+
+Contact.setIndexerForColumn('name', ChineseStringIndexer)
 ```
 
 
